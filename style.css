@@ -1,0 +1,33 @@
+#wpio_wait {
+    position: fixed;
+    top: 30px;
+    bottom: 0;
+    left: 160px;
+    right: 0;		    
+    z-index: 100;
+}
+#wpio_wait::after {
+    background: #333 url(ajax-loader.gif) 50% 55% no-repeat;
+    opacity: 0.5;
+    content: "";
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    position: absolute;
+    z-index: 99;
+}
+#wpio_wait div {
+    position: absolute;
+    top: 40%;
+    text-align: center;
+    width: 100%;
+    font-weight: bold;
+    font-size: 30px;
+    line-height: 30px;
+    color: #444;
+}
+.ioa-proceed {
+    width: 120px;
+    text-align: center;
+}
