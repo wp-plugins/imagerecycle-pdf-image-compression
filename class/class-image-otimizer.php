@@ -200,9 +200,12 @@ class wpImageRecycle {
     
     public function showWPImageRecycleMainPage(){
 	//Proceed actions if needed
-	wp_enqueue_script('wp-image-optimizer',plugins_url('script.js',dirname(__FILE__)));
-	wp_enqueue_style('wp-image-optimizer',plugins_url('style.css',dirname(__FILE__)));
-	
+	wp_enqueue_script('wp-image-optimizer',plugins_url('script.js',dirname(__FILE__)),array(),WPIO_IMAGERECYCLE_VERSION );
+	wp_enqueue_style('wp-image-optimizer',plugins_url('style.css',dirname(__FILE__)),array(),WPIO_IMAGERECYCLE_VERSION);
+        //reset list fail files in session
+        if(isset($_SESSION['wpir_failFiles']) ) {
+            $_SESSION['wpir_failFiles']= array(); 
+        }
 	$images = $this->getLocalImages();
 	$images = $this->prepareLocalImages($images);
 
@@ -325,27 +328,34 @@ class wpImageRecycle {
     protected function optimize($file){
 	//Optimization action
 	global $wpdb;
-	
+	$response = new stdClass();
+        $response->status = false;
+        $response->errCode = 0;
+        $response->msg =  __('Not be optimized yet','wpio') ;
+        
 	$file = realpath($file);
 	$relativePath = DIRECTORY_SEPARATOR.substr($file,strlen(ABSPATH));        
 	if($file===false || strpos($file, str_replace("/", DIRECTORY_SEPARATOR, ABSPATH)) !== 0){ 
-	    return false;
+            $response->msg =  __('File not found','wpio') ;
+	    return $response;
 	}
 	if(!in_array(strtolower(pathinfo($file,PATHINFO_EXTENSION)),$this->allowed_ext)){
-	    return false;
+	    $response->msg =  __('This file type is not allowed','wpio') ;
+	    return $response;
 	}
 	if(!file_exists($file)){
-	    return false;
+	    $response->msg =  __('File not found','wpio') ;
+	    return $response;
 	}
 
 	$query = $wpdb->prepare('SELECT id FROM '.$wpdb->prefix.'wpio_images WHERE file=%s',$relativePath);
 	if($wpdb->query($query)===false){
-	    return false;
+	    return $response;
 	}
 	
-	if($wpdb->num_rows>0){
-	    return false;
-	}
+	//if($wpdb->num_rows>0){
+	   // return false;
+	//}
         
         $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));          
         $compressionType = $this->settings['wpio_api_type'.$ext];       
@@ -353,7 +363,8 @@ class wpImageRecycle {
                 $compressionType = 'lossy';
         }   
         if($compressionType=="none" || !in_array($ext,$this->allowed_ext) ) {
-             return false;
+            $response->msg =  __('This file type is not allowed','wpio') ;
+	    return $response;
         }
         
         $fparams = array("compression_type"=> $compressionType);
@@ -376,53 +387,75 @@ class wpImageRecycle {
         }
         
 	$ioa = new ioaphp($this->settings['wpio_api_key'], $this->settings['wpio_api_secret']);
-        $api_url = isset( $this->settings['wpio_api_url'] ) ? $this->settings['wpio_api_url'] : 'https://api.imagerecycle.com/v1/';
-	$ioa->setAPIUrl($api_url);
+       // $api_url = isset( $this->settings['wpio_api_url'] ) ? $this->settings['wpio_api_url'] : 'https://api.imagerecycle.com/v1/';
+	//$ioa->setAPIUrl($api_url);
 	$return = $ioa->uploadFile($file,$fparams);
-	if($return === false || $return === null){
-	    return false;
+	if($return === false || $return === null || is_string($return) ){
+	    $response->msg = $ioa->getLastError();
+            $response->errCode = $ioa->getLastErrCode();
+            return $response;
 	}
 	$md5 = md5_file($file);
+        clearstatcache();
 	$sizebefore = filesize($file);
 
-	$optimizedFileContent = file_get_contents($return->optimized_url);
+	$optimizedFileContent = @file_get_contents($return->optimized_url);
 	if($optimizedFileContent===false){
-	    return false;
+	    $response->msg =  __('Optimized url not found','wpio') ;
+	    return $response;
 	}
 	if(file_put_contents($file, $optimizedFileContent)===false){
-	    return false;
+	    $response->msg =  __('Download optimized image fail','wpio') ;
+	    return $response;
 	}
+        clearstatcache();
 	$size_after = filesize($file);
 	$query = $wpdb->prepare('INSERT INTO '.$wpdb->prefix.'wpio_images (file,md5,api_id,size_before,size_after,date) 
 				    VALUES (%s,%s,%d,%d,%d,%s)',
 					    $relativePath,$md5,$return->id,$sizebefore,$size_after,date('Y-m-d H:i:s'));
 	if($wpdb->query($query)===false){
-	    return false;
+	    $response->msg =  __('Save optimized image to db fail','wpio') ;
+	    return $response;
 	}
-	return $return;
+        
+        $response->status = true;
+        $response->msg = sprintf(  __('Optimized at %s%%','wpio') , round(($sizebefore-$size_after)/$sizebefore*100,2));
+        
+	return $response;
+	
     }
     
     public function doActionOptimize(){
 	$file = ABSPATH.$_REQUEST['file'];
 	$returned = $this->optimize($file);
-	if($returned !== false){
-	    $this->ajaxReponse(true,$returned);
-	}else{
-	    $this->ajaxReponse(false);
-	}
+        $this->ajaxReponse($returned->status, $returned);  
+	
     }
     
     public function doActionOptimizeAll(){
-	$steps = 2;
+	$steps = 1;
 	$images = $this->getLocalImages();
+        if( !session_id() ) {
+           session_start();
+         }
+        if(!isset($_SESSION['wpir_failFiles']) ) {
+            $_SESSION['wpir_failFiles']= array();               
+        }
+        ob_implicit_flush(true);
+        @ob_end_flush(); 
 	foreach ($images as $image){
-	    if($image['optimized']===false){
+	    if($image['optimized']===false && !in_array($image['filename'], $_SESSION['wpir_failFiles']) ){
 		if($steps===0){
 		    $this->ajaxReponse(true,array('continue'=>true,'totalImages'=>$this->totalImages, 'totalOptimizedImages' => $this->totalOptimizedImages));
 		}
 		$returned = $this->optimize(ABSPATH.$image['filename']);
-		if($returned === false){		    
-		    $this->ajaxReponse(false);
+		if($returned === false || $returned->status === false){	
+                    if($returned->errCode=='401' || $returned->errCode=='403') { // Forbidden or Unauthorized
+                        $this->ajaxReponse(false, array('continue' => false, 'errMsg' => $returned->msg) );
+                    }
+                    $failFiles = (array)$_SESSION['wpir_failFiles'];
+                    $failFiles[] = $image['filename'];
+                    $_SESSION['wpir_failFiles'] = $failFiles;		   
 		}
 		$steps--;
 	    }
@@ -453,7 +486,7 @@ class wpImageRecycle {
 	if(!isset($return->id)){
 	    $this->ajaxReponse(false);
 	}
-	$fileContent = file_get_contents($return->origin_url);
+	$fileContent = @file_get_contents($return->origin_url);
 	if($fileContent===false){
 	    $this->ajaxReponse(false);
 	}

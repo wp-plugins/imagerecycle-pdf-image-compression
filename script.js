@@ -18,7 +18,7 @@ jQuery(document).ready(function($){
                // response = $.parseJSON(response);                
                 if(typeof(response.status)!=='undefined' && response.status===true){
                     if(action==='wpio_optimize'){
-                        $(e.currentTarget).parents('tr').find('.optimizationStatus').html('Optimized at '+(((response.datas.size_before-response.datas.size_after)*100)/response.datas.size_before).toFixed(2)+'%');
+                        $(e.currentTarget).parents('tr').find('.optimizationStatus').html( response.datas.msg);
                         $(e.currentTarget).replaceWith('<a class="button ioa-proceed" data-action="wpio_revert" data-file="'+file+'"></span>Revert to original</a>');
                     }else{
                         $(e.currentTarget).parents('tr').find('.optimizationStatus').html('');
@@ -58,8 +58,25 @@ jQuery(document).ready(function($){
                         $('#wpio_wait span').html(response.datas.totalOptimizedImages+' optimized images / '+response.datas.totalImages+' images');
                         optimizeAll();
                     }else{
-                        window.location.reload();
+                        $('#wpio_wait').html("<div>Finished</div>");
+                        setTimeout(function() {
+                          window.location.href = window.location.href;
+                        }, 3000); 
                     }
+                } else {                    
+                    if (typeof (response.datas) !== 'undefined') {
+                        //alert(response.datas.errMsg);
+                        $('#wpio_wait').html("<div style='color:#FF3300'>An error occurred: " + response.datas.errMsg+"</div>");     
+                        setTimeout(function() {
+                          window.location.href = window.location.href;
+                        }, 3000);                       
+                    }else {
+                        $('#wpio_wait span').html("<div>Finished</div>");
+                        setTimeout(function() {
+                           window.location.href = window.location.href;
+                        }, 3000); 
+                    }
+                  
                 }
             });
     };
