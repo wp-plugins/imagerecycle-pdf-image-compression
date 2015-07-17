@@ -17,7 +17,12 @@ class ioaphp {
      * @var string 
      */
     protected $lastError = null;
-
+    
+     /**
+     * Last Error code
+     * @var string 
+     */
+    protected $lastErrCode = null;
 
     /**
      * 
@@ -55,6 +60,7 @@ class ioaphp {
 	    $result = $this->callAPI($this->apiUrl.'images/','POST',$params);
 	} catch (Exception $exc) {
 	    $this->lastError = $exc->getMessage();
+            $this->lastErrCode = $exc->getCode();
 	    return false;
 	}
 	return $result;
@@ -212,6 +218,9 @@ class ioaphp {
      */
     public function getLastError(){
 	return $this->lastError;
+    }
+    public function getLastErrCode(){
+	return $this->lastErrCode;
     }
 }
 ?>

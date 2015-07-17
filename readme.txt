@@ -3,7 +3,7 @@ Contributors: ImageRecycle
 Tags: image compression, image optimization, image compress, image reduce, media, image, pdf, optimize, compression, compress, resize, reduce, jpegtran, lossless, lossy, optimization, optipng, photo, picture, pngout, pngquant, seo
 Requires at least: 3.5.1
 Tested up to: 4.2
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -85,6 +85,8 @@ It's possible on single and multiple server WordPress install. Once you are a me
 
 = 1.0.0 : =
 * Initial release
+= 1.0.1 : =
+* Fix bulk optimization stuck on some servers
 
 
 == Upgrade Notice ==
