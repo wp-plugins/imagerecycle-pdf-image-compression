@@ -40,7 +40,7 @@ class wpImageRecycle {
    
 	require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 
-	$sql = "CREATE TABLE IF NOT EXISTS `".$wpdb->prefix."wpio_images` (
+	$sql = "CREATE TABLE `".$wpdb->prefix."wpio_images` (
 		   `id` int(11) NOT NULL AUTO_INCREMENT,
 		   `file` varchar(250) NOT NULL,
 		   `md5` varchar(32) NOT NULL,
@@ -48,6 +48,7 @@ class wpImageRecycle {
 		   `size_before` int(11) NOT NULL,
 		   `size_after` int(11) NOT NULL,
 		   `date` datetime NOT NULL,
+                   `expiration_date` datetime NOT NULL,
 		   PRIMARY KEY (`id`)
 		);";
 	dbDelta( $sql );
@@ -217,6 +218,10 @@ class wpImageRecycle {
 	
 	$imagesPaged = array_slice($images, ($paged-1)*30, 30);
 		
+        if( empty($this->settings['wpio_api_key']) || empty($this->settings['wpio_api_secret']) ) {
+            include_once WPIO_IMAGERECYCLE .'class/pages/wpio-dashboard.php'; 
+        } 
+           
 	$table = new WPIOTable();
 	$table->setColumns(array( 'cb' => '<input type="checkbox" />','filename'=>'Filename','size'=>'Size (Kb)','status'=>'Status','actions'=>'Actions'));
 	$table->setItems($imagesPaged,count($images),30);
@@ -410,9 +415,9 @@ class wpImageRecycle {
 	}
         clearstatcache();
 	$size_after = filesize($file);
-	$query = $wpdb->prepare('INSERT INTO '.$wpdb->prefix.'wpio_images (file,md5,api_id,size_before,size_after,date) 
-				    VALUES (%s,%s,%d,%d,%d,%s)',
-					    $relativePath,$md5,$return->id,$sizebefore,$size_after,date('Y-m-d H:i:s'));
+	$query = $wpdb->prepare('INSERT INTO '.$wpdb->prefix.'wpio_images (file,md5,api_id,size_before,size_after,date,expiration_date) 
+				    VALUES (%s,%s,%d,%d,%d,%s,%s)',
+					    $relativePath,$md5,$return->id,$sizebefore,$size_after,date('Y-m-d H:i:s'),$return->expiration_date);
 	if($wpdb->query($query)===false){
 	    $response->msg =  __('Save optimized image to db fail','wpio') ;
 	    return $response;
