@@ -3,7 +3,7 @@ Contributors: ImageRecycle
 Tags: image compression, image optimization, image compress, image resizer, image resizer, image reduce, image compressor, image compression, media, image, pdf, optimize, compression, compress, resize, reduce, lossless, lossy, optimization, photo, picture, seo
 Requires at least: 3.5.1
 Tested up to: 4.2
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -31,7 +31,7 @@ The jpg, png, gif optimization algorithm is capable of reducing the image size b
 The plugin is highly configurable and you can choose media from any folder on your FTP.
 So it will works with all third party plugins including WooCommerce. Plus, you can of course optimize media from other folders (multiple site, other CMS,...)
 
-**Test full service for free during 15 days**
+**Test full service for free during 15 days.**
 
 
 **Main features:**
@@ -85,6 +85,8 @@ It's possible on single and multiple server WordPress install. Once you are a me
 
 = 1.0.0 : =
 * Initial release
+= 1.0.1 : =
+* Fix bulk optimization stuck on some servers
 
 
 == Upgrade Notice ==
