@@ -26,11 +26,12 @@ class wpImageRecycle {
 	add_action('manage_media_custom_column', array(&$this,'fillMediaColumn'), 10, 2 );
 	
 	add_action('admin_menu',array(&$this,'wpio_add_menu_page'));
-	
+	add_action( 'load-dashboard_page_wpir-foldertree', array(&$this,'wpir_foldertree_thickbox') ); 
 	add_action('wp_ajax_wpio_optimize', array(&$this,'doActionOptimize'));
 	add_action('wp_ajax_wpio_optimize_all', array(&$this,'doActionOptimizeAll'));
 	add_action('wp_ajax_wpio_revert', array(&$this,'doActionRevert'));
-	
+	add_action('wp_ajax_wpio_getFolders', array($this, 'getFolders') );
+        add_action('wp_ajax_wpio_setFolders', array($this, 'setFolders') );
 	add_action('admin_enqueue_scripts', array(&$this,'addScriptUploadPage'));
         add_action('admin_init', array(&$this,'wpio_admin_init'));
     }   
@@ -62,6 +63,8 @@ class wpImageRecycle {
 	//Add menu link in the media section
 	add_media_page( 'Image Recycle', 'Image recycle', 'activate_plugins', 'wp-image-recycle-page', array(&$this,'showWPImageRecycleMainPage'));
         add_options_page('Image Recycle', 'Image Recycle', 'manage_options', 'option-image-recycle', array( $this, 'view_image_recycle' ));
+        add_submenu_page( null, 'Folder tree', 'Folder tree', 'manage_options', 'wpir-foldertree', array( $this, 'folderTree' ) );
+        
     }
     
     public function wpio_admin_init(){
@@ -82,9 +85,188 @@ class wpImageRecycle {
         add_settings_field('wpio_api_typejpg', __('compression type - JPG : ', 'wpio'), array( $this, 'showtypejpg' ), 'option-image-recycle', 'wp-image-recycle-page');      
         add_settings_field('wpio_api_typegif', __('compression type - GIF : ', 'wpio'), array( $this, 'showtypegif' ), 'option-image-recycle', 'wp-image-recycle-page');      
         
-        
     }
     
+    public function folderTree() {
+       /* Do nothing */
+    }
+    public function wpir_foldertree_thickbox() {
+        if(!defined('IFRAME_REQUEST')) {
+            define('IFRAME_REQUEST',true);
+        }
+        iframe_header(); 
+        global $wp_scripts, $wp_styles;
+        if(WP_DEBUG) {
+            wp_enqueue_script('wp-image-optimizer-jaofoldertree',plugins_url('/js/jaofoldertree.js',dirname(__FILE__)),array(), WPIO_IMAGERECYCLE_VERSION.'-'.  rand(1,1000));
+            wp_enqueue_style('wp-image-optimizer-jaofoldertree-css',plugins_url('/css/jaofoldertree.css',dirname(__FILE__)),array(), WPIO_IMAGERECYCLE_VERSION.'-'.  rand(1,1000));
+        }else {
+            wp_enqueue_script('wp-image-optimizer-jaofoldertree',plugins_url('/js/jaofoldertree.js',dirname(__FILE__)),array(), WPIO_IMAGERECYCLE_VERSION);
+            wp_enqueue_style('wp-image-optimizer-jaofoldertree-css',plugins_url('/css/jaofoldertree.css',dirname(__FILE__)),array(), WPIO_IMAGERECYCLE_VERSION);
+        }
+        
+        $include_folders = isset( $this->settings['wpio_api_include'] ) ? $this->settings['wpio_api_include'] : 'wp-content/uploads,wp-content/themes';
+        $selected_folders = explode(',',$include_folders );
+       ?>
+<div style="padding-top: 10px;">
+    <div class="pull-left" style="float: left">  
+      <div id="wpio_foldertree"></div>
+    </div>
+    <div class="pull-right" style="float: right;margin-right: 10px;">	
+            <button class="button button-primary" type="button" onclick="jSelectFolders()"><?php echo  __('OK','wpio')  ?></button>
+            <button class="button" type="button" onclick="window.parent.tb_remove();"><?php echo __('Cancel','wpio')  ?></button>
+    </div>
+</div>  
+<script>
+var curFolders = <?php echo json_encode($selected_folders);?>;
+
+jQuery(document).ready(function($) {
+   var sdir = '/';
+  jSelectFolders = function() {
+    
+      var fchecked = [];    
+       curFolders.sort();
+       for(i=0;i< curFolders.length;i++) {
+           curDir = curFolders[i];
+           valid = true;
+           for(j=0;j<i;j++) {
+               if(curDir.indexOf(curFolders[j])==0) {
+                 valid = false;
+               }
+           }          
+           if(valid) {
+                fchecked.push(curDir);
+           }
+       }
+        
+       data ={};
+       data.folders = fchecked.join(',');
+       data.action = 'wpio_setFolders';
+       $.ajax({
+            url     :  ajaxurl,             
+            type    :   "POST",
+            data    : data
+       }).done(function(result){         
+           window.parent.tb_remove();
+       });
+       
+       window.parent.document.getElementById('wpio_api_inxclude').value = fchecked.join(',');
+       window.parent.document.getElementById('wpio_api_inxclude_id').value = fchecked.join(',');
+  }    
+   $('#wpio_foldertree').wpio_jaofoldertree({ 
+            script  : ajaxurl,
+            usecheckboxes : true,
+            showroot : '/',
+            oncheck: function(elem,checked,type,file){                     
+                var dir = file;
+                if(file.substring(file.length-1) ==  sdir) {
+                    file = file.substring(0,file.length-1);
+                }
+                if(file.substring(0,1) ==  sdir) {
+                    file = file.substring(1,file.length);
+                }         
+                if(checked ) {                  
+                    if(file!="" && curFolders.indexOf(file)== -1) {
+                        curFolders.push(file);
+                    }                  
+                } else {
+                     
+                    if(file != "" && !$(elem).next().hasClass('pchecked') ) {
+                        temp = []; 
+                        for(i=0;i<curFolders.length;i++) {
+                            curDir = curFolders[i];
+                            if(curDir.indexOf(file)!==0) {
+                                temp.push(curDir);
+                            }
+                        }                        
+                        curFolders = temp;   
+                    } else {                        
+                       var index  = curFolders.indexOf(file);   
+                       if(index>-1) {
+                            curFolders.splice(index,1);
+                       }                        
+                    }                    
+                }
+             
+            }
+        });
+        
+        jQuery('#wpio_foldertree').bind('afteropen',function(){
+            jQuery(jQuery('#wpio_foldertree').wpio_jaofoldertree('getchecked')).each(function() {
+                  curDir = this.file;
+                   if(curDir.substring(curDir.length-1) ==  sdir) {
+                        curDir = curDir.substring(0,curDir.length-1);
+                    }
+                    if(curDir.substring(0,1) ==  sdir) {
+                        curDir = curDir.substring(1,curDir.length);
+                    }
+                    if(curFolders.indexOf(curDir)== -1) {
+                        curFolders.push(curDir);
+                    }
+            })
+            spanCheckInit();
+          
+        })
+        
+    spanCheckInit = function() {        
+        $("span.check").unbind('click');
+        $("span.check").bind('click', function() {
+            $(this).removeClass('pchecked');
+            $(this).toggleClass('checked');
+            if($(this).hasClass('checked')) {
+                $(this).prev().prop('checked', true).trigger('change');;
+            }else {
+                $(this).prev().prop('checked',false).trigger('change');;
+            }
+            setParentState(this);
+            setChildrenState(this);
+        });
+    }
+    
+    setParentState = function(obj) {        
+        var liObj = $(obj).parent().parent(); //ul.jaofoldertree
+        var noCheck = 0, noUncheck =0, totalEl = 0;
+        liObj.find('li span.check').each(function(){
+           
+            if($(this).hasClass('checked')) {
+                noCheck++;
+            }else {
+                noUncheck++;
+            }
+            totalEl++;
+        })
+       
+        if(totalEl==noCheck) {
+            liObj.parent().children('span.check').removeClass('pchecked').addClass('checked');
+            liObj.parent().children('input[type="checkbox"]').prop('checked',true).trigger('change');            
+        }else if(totalEl==noUncheck) {
+            liObj.parent().children('span.check').removeClass('pchecked').removeClass('checked');
+            liObj.parent().children('input[type="checkbox"]').prop('checked',false).trigger('change');            
+        }else {
+            liObj.parent().children('span.check').removeClass('checked').addClass('pchecked');
+            liObj.parent().children('input[type="checkbox"]').prop('checked',false).trigger('change');            
+        }
+        
+        if(liObj.parent().children('span.check').length>0) {           
+            setParentState(liObj.parent().children('span.check'));
+        }
+    }
+    
+    setChildrenState = function(obj) {        
+        if($(obj).hasClass('checked')) {            
+            $(obj).parent().find('li span.check').removeClass('pchecked').addClass("checked");
+            $(obj).parent().find('li input[type="checkbox"]').prop('checked',true).trigger('change');
+        }else {
+            $(obj).parent().find('li span.check').removeClass("checked");
+            $(obj).parent().find('li input[type="checkbox"]').prop('checked',false).trigger('change');            
+        }
+        
+    }    
+})
+</script>   
+<?php
+        iframe_footer(); 
+        exit; //Die to prevent the page continueing loading and adding the admin menu's etc. 
+    }
     public function view_image_recycle()
     {
         ?>
@@ -103,6 +285,7 @@ class wpImageRecycle {
             ?>
             </form>
         </div>
+    
         <?php
     }
     
@@ -130,7 +313,11 @@ class wpImageRecycle {
     
     public function showIncludeFolder(){
         $api_include = isset( $this->settings['wpio_api_include'] ) ? $this->settings['wpio_api_include'] : 'wp-content'.DIRECTORY_SEPARATOR.'uploads,wp-content'.DIRECTORY_SEPARATOR.'themes';
-	echo '<input id="wpio_api_inxclude" name="_wpio_settings[wpio_api_include]" type="text" value="'.esc_attr( $api_include).'" size="50"/>';
+	echo '<input id="wpio_api_inxclude" readonly type="text" value="'.esc_attr( $api_include).'" size="50"/>';
+        echo '<input id="wpio_api_inxclude_id" name="_wpio_settings[wpio_api_include]" type="hidden" value="'.esc_attr( $api_include).'" size="50"/>';
+        echo '<a href="index.php?page=wpir-foldertree&TB_iframe=true&width=600&height=550"  class="thickbox"><span class="dashicons dashicons-portfolio" style="line-height:1.5;text-decoration:none"></span></a>';
+        wp_enqueue_script( 'thickbox' ); 
+        wp_enqueue_style( 'thickbox' ); 
     }
     
     public function showImageResize(){
@@ -201,11 +388,14 @@ class wpImageRecycle {
     
     public function showWPImageRecycleMainPage(){
 	//Proceed actions if needed
-	wp_enqueue_script('wp-image-optimizer',plugins_url('script.js',dirname(__FILE__)),array(),WPIO_IMAGERECYCLE_VERSION );
-	wp_enqueue_style('wp-image-optimizer',plugins_url('style.css',dirname(__FILE__)),array(),WPIO_IMAGERECYCLE_VERSION);
+	wp_enqueue_script('wp-image-optimizer',plugins_url('js/script.js',dirname(__FILE__)),array(),WPIO_IMAGERECYCLE_VERSION );
+	wp_enqueue_style('wp-image-optimizer',plugins_url('css/style.css',dirname(__FILE__)),array(),WPIO_IMAGERECYCLE_VERSION);
         //reset list fail files in session
         if(isset($_SESSION['wpir_failFiles']) ) {
             $_SESSION['wpir_failFiles']= array(); 
+        }
+        if(isset($_SESSION['wpir_processed']) ) {
+            $_SESSION['wpir_processed'] = 0;               
         }
 	$images = $this->getLocalImages();
 	$images = $this->prepareLocalImages($images);
@@ -223,18 +413,28 @@ class wpImageRecycle {
         } 
            
 	$table = new WPIOTable();
-	$table->setColumns(array( 'cb' => '<input type="checkbox" />','filename'=>'Filename','size'=>'Size (Kb)','status'=>'Status','actions'=>'Actions'));
+	$table->setColumns(array( 'cb' => '<input type="checkbox" />', 'thumbnail'=>'Image' ,'filename'=>'Filename','size'=>'Size (Kb)','status'=>'Status','actions'=>'Actions'));
 	$table->setItems($imagesPaged,count($images),30);
 	$table->display();
+
+    $progressVal = floor($this->totalOptimizedImages*100 / $this->totalImages);
+    if($progressVal>100) $progressVal =100;
+    $pressMsg = sprintf("Processing ... %s / %s images", $this->totalOptimizedImages, $this->totalImages);
+?>
+    <div id="progress_init" style="display: none">
+        <progress value="<?php echo $progressVal;?>" max="100"></progress><span><?php echo $pressMsg;?></span>
+        <p class="timeRemain"></p>
+    </div>
+    <?php
     }
     
     protected function getLocalImages(){
 	global $wpdb;
-        $query = 'SELECT file,api_id,size_before,date FROM '.$wpdb->prefix.'wpio_images';
+        $query = 'SELECT file,api_id,size_before,date,expiration_date FROM '.$wpdb->prefix.'wpio_images';
         $optimizedFiles = $wpdb->get_results($query,OBJECT_K);
 	$this->totalOptimizedImages = count($optimizedFiles);	
 	if (!empty($this->settings['wpio_api_include']) ) { 
-            $include_folders = $this->settings['wpio_api_include'];
+            $include_folders = $this->settings['wpio_api_include'];            
             $this->allowedPath = explode(',',$include_folders);                
         }
         for($i=0;$i<count($this->allowed_ext); $i++) {
@@ -248,10 +448,10 @@ class wpImageRecycle {
         $min_size = (int)$this->settings['wpio_api_minfilesize'] *1024;   
         $max_size = (int)$this->settings['wpio_api_maxfilesize'] *1024; 
         if($max_size==0) $max_size = 5 * 1024 * 1024;
-        
+        $now = time();
 	$images = array();
         foreach ($this->allowedPath as $cur_dir) {
-            $scan_dir = ABSPATH.$cur_dir; 
+            $scan_dir = str_replace('/', DIRECTORY_SEPARATOR, ABSPATH.$cur_dir) ; 
             foreach (new RecursiveIteratorIterator(new IgnorantRecursiveDirectoryIterator($scan_dir)) as $filename){
                 $continue = false;              
                 if($continue===true){
@@ -270,8 +470,12 @@ class wpImageRecycle {
                 $data['size'] = filesize($filename);
                 if(isset($optimizedFiles[$data['filename']])){
                     $data['optimized'] = true;
-                    $data['optimized_datas'] = $optimizedFiles[$data['filename']];		    
-                }else{
+                    $data['optimized_datas'] = $optimizedFiles[$data['filename']];
+                    $expirationTime = strtotime($optimizedFiles[$data['filename']]->expiration_date);
+                    if($expirationTime < $now) {
+                        $data['optimized_datas']->expired = true;                        
+                    }                    
+                } else{
                     $data['optimized'] = false;
                 }
                 $this->totalImages++;
@@ -289,7 +493,12 @@ class wpImageRecycle {
 		$data['size'] = number_format(filesize(ABSPATH.$image['filename'])/1000, 2, '.', '') ;
 		if($image['optimized'] === true){
 		    $data['status'] = '<span class="spinner"></span><span class="optimizationStatus">Optimized at '.round(($image['optimized_datas']->size_before-filesize(ABSPATH.$image['filename']))/$image['optimized_datas']->size_before*100,2).'%</span>';
-		    $data['actions'] = '<a class="button ioa-proceed" data-action="wpio_revert" data-file="'.$image['optimized_datas']->file.'">Revert to original</a>';
+                    if(isset($image['optimized_datas']->expired) && $image['optimized_datas']->expired ) {
+                        $data['actions'] =  '';   
+                    }else {
+                        $data['actions'] = '<a class="button ioa-proceed" data-action="wpio_revert" data-file="'.$image['optimized_datas']->file.'">Revert to original</a>';
+                    }
+		    
 		}else{
 		    $data['status'] = '<span class="spinner"></span><span class="optimizationStatus"></span>';
 		    $data['actions'] = '<a class="button button-primary ioa-proceed" data-action="wpio_optimize" data-file="'.$image['filename'].'">Optimize</a>';
@@ -325,7 +534,7 @@ class wpImageRecycle {
     
     function addScriptUploadPage($page) {
 	if ( $page === 'settings_page_option-image-recycle' || $page === 'upload.php') {		
-		wp_enqueue_script('wp-image-optimizer',plugins_url('script.js',dirname(__FILE__)));
+		wp_enqueue_script('wp-image-optimizer',plugins_url('js/script.js',dirname(__FILE__)));
 	}
     }
 
@@ -446,14 +655,17 @@ class wpImageRecycle {
         if(!isset($_SESSION['wpir_failFiles']) ) {
             $_SESSION['wpir_failFiles']= array();               
         }
+        if(!isset($_SESSION['wpir_processed']) ) {
+            $_SESSION['wpir_processed'] = 0;               
+        }
         ob_implicit_flush(true);
         @ob_end_flush(); 
 	foreach ($images as $image){
 	    if($image['optimized']===false && !in_array($image['filename'], $_SESSION['wpir_failFiles']) ){
-		if($steps===0){
-		    $this->ajaxReponse(true,array('continue'=>true,'totalImages'=>$this->totalImages, 'totalOptimizedImages' => $this->totalOptimizedImages));
+		if($steps===0){                                   
+		    $this->ajaxReponse(true,array('continue'=>true,'totalImages'=>$this->totalImages, 'totalOptimizedImages' => $this->totalOptimizedImages,'processedImages'=>$_SESSION['wpir_processed']));
 		}
-		$returned = $this->optimize(ABSPATH.$image['filename']);
+		$returned = $this->optimize(ABSPATH.$image['filename']); 
 		if($returned === false || $returned->status === false){	
                     if($returned->errCode=='401' || $returned->errCode=='403') { // Forbidden or Unauthorized
                         $this->ajaxReponse(false, array('continue' => false, 'errMsg' => $returned->msg) );
@@ -462,6 +674,8 @@ class wpImageRecycle {
                     $failFiles[] = $image['filename'];
                     $_SESSION['wpir_failFiles'] = $failFiles;		   
 		}
+                $processed = (int)$_SESSION['wpir_processed'];
+                $_SESSION['wpir_processed'] = $processed+1;
 		$steps--;
 	    }
 	}
@@ -508,6 +722,61 @@ class wpImageRecycle {
 	$response = new stdClass();
 	$response->filename = $row->file;
 	$this->ajaxReponse(true,$response);
+    }
+    
+    public function getFolders() {
+             
+        $include_folders = isset( $this->settings['wpio_api_include'] ) ? $this->settings['wpio_api_include'] : 'wp-content/uploads,wp-content/themes';
+        $selected_folders = explode(',', $include_folders);      
+        $path = ABSPATH.DIRECTORY_SEPARATOR;
+        $dir = $_REQUEST['dir'];
+        
+        $return = $dirs =  array();
+        if( file_exists($path.$dir) ) {            
+                $files = scandir($path.$dir);
+
+                natcasesort($files);
+                if( count($files) > 2 ) { // The 2 counts for . and ..
+                    // All dirs
+                    $baseDir = ltrim(rtrim(str_replace(DIRECTORY_SEPARATOR, '/', $dir),'/'),'/'); 
+                    if($baseDir != '') $baseDir .= '/';
+                    foreach( $files as $file ) {			
+                            if( file_exists($path . $dir . DIRECTORY_SEPARATOR . $file) && $file != '.' && $file != '..' && is_dir($path . $dir. DIRECTORY_SEPARATOR . $file) ) {                                                                    
+                              
+                                    if(in_array( $baseDir .$file,$selected_folders) ) {
+                                        $dirs[] = array('type'=>'dir','dir'=>$dir,'file'=>$file,'checked'=>true);
+                                    }else {
+                                        $hasSubFolderSelected = false;
+                                        foreach ($selected_folders as $selected_folder) {
+                                            if(strpos($selected_folder,$baseDir .$file)=== 0) {
+                                                $hasSubFolderSelected = true;
+                                            }
+                                        }
+                                        if($hasSubFolderSelected) {
+                                           $dirs[] = array('type'=>'dir','dir'=>$dir,'file'=>$file,'pchecked'=>true); 
+                                        }else {
+                                            $dirs[] = array('type'=>'dir','dir'=>$dir,'file'=>$file);
+                                        }
+                                        
+                                    }
+                            }
+                    }
+                    $return = $dirs;
+                }
+        }
+        echo json_encode( $return );      
+        die();
+    }
+    
+    public function setFolders() {
+               
+        $folders  =$_REQUEST['folders'];
+        $settings = get_option( '_wpio_settings' );
+        $settings['wpio_api_include'] = $folders;
+        $result = update_option('_wpio_settings',$settings);
+        
+        echo json_encode( $result );       
+        die();
     }
     
     public function generateMetadata($meta){
@@ -583,6 +852,13 @@ if( !class_exists( 'WPIOTable' ) ) {
 	    );    
 	}
 	
+        public function column_thumbnail($item) {
+            $fileurl = get_site_url(). '/'. str_replace(DIRECTORY_SEPARATOR, '/', $item['filename']);
+	    return sprintf(
+		'<img class="image-small" src="%s" />', $fileurl
+	    );    
+	}
+        
 	function get_bulk_actions() {
 	    $actions = array(
 	      'optimize_selected'    => 'Optimize selected',
