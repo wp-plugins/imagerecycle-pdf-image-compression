@@ -6,14 +6,14 @@
 // Dual-licensed under the GNU General Public License and the MIT License
 // Icons from famfamfam silk icon set thanks to http://www.famfamfam.com/lab/icons/silk/
 //
-// Usage : $('#jao').wpio_jaofoldertree(options);
+// Usage : $('#jao').wpio_jaofoldertree(wpio_options);
 //
 // Author: Damien Barrère
 // Website: http://www.crac-design.com
 
 (function( $ ) {
   
-    var options =  {
+    var wpio_options =  {
       'root'            : '/',
       'script'         : 'connectors/jaoconnector.php',
       'showroot'        : 'root',
@@ -27,28 +27,28 @@
       'canselect'       : true
     };
 
-    var methods = {
+    var wpio_methods = {
         init : function( o ) {
             if($(this).length==0){
                 return;
             }
             $this = $(this);
-            $.extend(options,o);
+            $.extend(wpio_options,o);
 
-            if(options.showroot!=''){
+            if(wpio_options.showroot!=''){
                 checkboxes = '';
-                if(options.usecheckboxes===true || options.usecheckboxes==='dirs'){
-                    checkboxes = '<input type="checkbox" /><span class="check" data-file="'+options.root+'" data-type="dir"></span>';
+                if(wpio_options.usecheckboxes===true || wpio_options.usecheckboxes==='dirs'){
+                    checkboxes = '<input type="checkbox" /><span class="check" data-file="'+wpio_options.root+'" data-type="dir"></span>';
                 }
-                $this.html('<ul class="wpio_jaofoldertree"><li class="drive wpio_directory collapsed selected">'+checkboxes+'<a href="#" data-file="'+options.root+'" data-type="dir">'+options.showroot+'</a></li></ul>');
+                $this.html('<ul class="wpio_jaofoldertree"><li class="drive wpio_directory collapsed selected">'+checkboxes+'<a href="#" data-file="'+wpio_options.root+'" data-type="dir">'+wpio_options.showroot+'</a></li></ul>');
             }
-            openfolder(options.root);
+            wpio_openfolder(wpio_options.root);
         },
         open : function(dir){
-            openfolder(dir);
+            wpio_openfolder(dir);
         },
         close : function(dir){
-            closedir(dir);
+            wpio_closedir(dir);
         },
         getchecked : function(){
             var list = new Array();            
@@ -76,13 +76,13 @@
         }
     };
 
-    openfolder = function(dir) {
+    wpio_openfolder = function(dir) {
 	    if($this.find('a[data-file="'+dir+'"]').parent().hasClass('expanded')){
 		return;
 	    }
             var ret;
             ret = $.ajax({
-                url : options.script,
+                url : wpio_options.script,
                 data : {dir : dir, action: 'wpio_getFolders'},
                 context : $this,
 		dataType: 'json',
@@ -98,7 +98,7 @@
                         isdir = '';
                     }
                     ret += '<li class="'+classe+'">'                    
-                    if(options.usecheckboxes===true || (options.usecheckboxes==='dirs' && datas[ij].type=='dir') || (options.usecheckboxes==='files' && datas[ij].type=='file')){
+                    if(wpio_options.usecheckboxes===true || (wpio_options.usecheckboxes==='dirs' && datas[ij].type=='dir') || (wpio_options.usecheckboxes==='files' && datas[ij].type=='file')){
                         ret += '<input type="checkbox" data-file="'+dir+datas[ij].file+isdir+'" data-type="'+datas[ij].type+'" />';                        
                        
                         testFolder = dir+datas[ij].file; 
@@ -124,11 +124,11 @@
                 
                 this.find('a[data-file="'+dir+'"]').parent().removeClass('wait').removeClass('collapsed').addClass('expanded');
                 this.find('a[data-file="'+dir+'"]').after(ret);
-                this.find('a[data-file="'+dir+'"]').next().slideDown(options.expandSpeed,options.expandEasing);
+                this.find('a[data-file="'+dir+'"]').next().slideDown(wpio_options.expandSpeed,wpio_options.expandEasing);
                 
-                setevents();
+                wpio_setevents();
                 
-                if(options.usecheckboxes){
+                if(wpio_options.usecheckboxes){
                     this.find('a[data-file="'+dir+'"]').parent().find('li input[type="checkbox"]').attr('checked',null);
                     for(ij=0; ij<datas.length; ij++){
                         testFolder = dir+datas[ij].file;
@@ -157,10 +157,10 @@
             });
     }
 
-    closedir = function(dir) {
-            $this.find('a[data-file="'+dir+'"]').next().slideUp(options.collapseSpeed,options.collapseEasing,function(){$(this).remove();});
+    wpio_closedir = function(dir) {
+            $this.find('a[data-file="'+dir+'"]').next().slideUp(wpio_options.collapseSpeed,wpio_options.collapseEasing,function(){$(this).remove();});
             $this.find('a[data-file="'+dir+'"]').parent().removeClass('expanded').addClass('collapsed');
-            setevents();
+            wpio_setevents();
             
             //Trigger custom event
             $this.trigger('afterclose');
@@ -168,17 +168,17 @@
             
     }
 
-    setevents = function(){
+    wpio_setevents = function(){
         $this.find('li a').unbind('click');
         //Bind userdefined function on click an element
         $this.find('li a').bind('click', function() {
-            options.onclick(this, $(this).attr('data-type'),$(this).attr('data-file'));
-            if(options.usecheckboxes && $(this).attr('data-type')=='file'){
+            wpio_options.onclick(this, $(this).attr('data-type'),$(this).attr('data-file'));
+            if(wpio_options.usecheckboxes && $(this).attr('data-type')=='file'){
                     $this.find('li input[type="checkbox"]').attr('checked',null);
                     $(this).prev(':not(:disabled)').attr('checked','checked');
                     $(this).prev(':not(:disabled)').trigger('check');
             }
-            if(options.canselect){
+            if(wpio_options.canselect){
                 $this.find('li').removeClass('selected');
                 $(this).parent().addClass('selected');
             }
@@ -186,7 +186,7 @@
         });
         //Bind checkbox check/uncheck
         $this.find('li input[type="checkbox"]').bind('change', function() {
-            options.oncheck(this,$(this).is(':checked'), $(this).next().attr('data-type'),$(this).next().attr('data-file'));
+            wpio_options.oncheck(this,$(this).is(':checked'), $(this).next().attr('data-type'),$(this).next().attr('data-file'));
             if($(this).is(':checked')){
                 $this.trigger('check');
             }else{
@@ -194,16 +194,16 @@
             }
         });
         //Bind for collapse or expand elements
-        $this.find('li.wpio_directory.collapsed a').bind('click', function() {methods.open($(this).attr('data-file'));return false;});
-        $this.find('li.wpio_directory.expanded a').bind('click', function() {methods.close($(this).attr('data-file'));return false;});        
+        $this.find('li.wpio_directory.collapsed a').bind('click', function() {wpio_methods.open($(this).attr('data-file'));return false;});
+        $this.find('li.wpio_directory.expanded a').bind('click', function() {wpio_methods.close($(this).attr('data-file'));return false;});        
     }
 
     $.fn.wpio_jaofoldertree = function( method ) {
         // Method calling logic
-        if ( methods[method] ) {
-            return methods[ method ].apply( this, Array.prototype.slice.call( arguments, 1 ));
+        if ( wpio_methods[method] ) {
+            return wpio_methods[ method ].apply( this, Array.prototype.slice.call( arguments, 1 ));
         } else if ( typeof method === 'object' || ! method ) {
-            return methods.init.apply( this, arguments );
+            return wpio_methods.init.apply( this, arguments );
         } else {
             //error
         }    

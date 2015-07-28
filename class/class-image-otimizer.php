@@ -416,7 +416,7 @@ jQuery(document).ready(function($) {
 	$table->setColumns(array( 'cb' => '<input type="checkbox" />', 'thumbnail'=>'Image' ,'filename'=>'Filename','size'=>'Size (Kb)','status'=>'Status','actions'=>'Actions'));
 	$table->setItems($imagesPaged,count($images),30);
 	$table->display();
-
+if($this->totalImages==0) $this->totalImages = 1; //avoid divide zero
     $progressVal = floor($this->totalOptimizedImages*100 / $this->totalImages);
     if($progressVal>100) $progressVal =100;
     $pressMsg = sprintf("Processing ... %s / %s images", $this->totalOptimizedImages, $this->totalImages);
@@ -782,9 +782,11 @@ jQuery(document).ready(function($) {
     public function generateMetadata($meta){
 	$path = ABSPATH.pathinfo('/wp-content/uploads/'.$meta['file'], PATHINFO_DIRNAME).'/';
 	$this->optimize(ABSPATH.'/wp-content/uploads/'.$meta['file']);	
-	foreach($meta['sizes'] as $thumb){
-	    $this->optimize($path.$thumb['file']);	   
-	}
+        if(is_array($meta['sizes']) && count($meta['sizes']) ) {
+            foreach($meta['sizes'] as $thumb){
+                $this->optimize($path.$thumb['file']);	   
+            }
+        }
 	return $meta;
     }
     
