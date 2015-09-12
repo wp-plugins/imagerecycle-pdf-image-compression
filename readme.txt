@@ -3,7 +3,7 @@ Contributors: ImageRecycle
 Tags: image compression, image optimization, image compress, image resizer, image resizer, image reduce, image compressor, image compression, media, image, pdf, optimize, compression, compress, resize, reduce, lossless, lossy, optimization, photo, picture, seo
 Requires at least: 3.5.1
 Tested up to: 4.3
-Stable tag: 1.1.1
+Stable tag: 1.1.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -80,7 +80,10 @@ It's possible on single and multiple server WordPress install. Once you are a me
 1. Select folder to include/exclude from optimization process
 
 == Changelog ==
-
+= 1.1.2 : =
+* Fix some default settings values not set
+= 1.1.1 : =
+* Add quick api key and secret selection for already created accounts
 = 1.1.0 : =
 * Add quick account creation from the plugin
 * Enhanced returned error messages from API

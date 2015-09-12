@@ -4,7 +4,7 @@ Plugin Name: ImageRecycle pdf & image compression
 Plugin URI: https://www.imagerecycle.com/cms/wordpress
 Description: ImageRecycle is an automatic image & PDF optimizer that save up to 80% of the media weight without loosing quality. Speed up your website, keep visitors on board!
 Author: ImageRecycle
-Version: 1.1.1
+Version: 1.1.2
 Author URI: https://www.imagerecycle.com
 Licence : GNU General Public License version 2 or later; http://www.gnu.org/licenses/gpl-2.0.html
 Copyright : Copyright (C) 2014 Imagerecycle (https://www.imagerecycle.com). All rights reserved.

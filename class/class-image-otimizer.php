@@ -16,7 +16,22 @@ class wpImageRecycle {
 	include_once 'ioa.class.php';
 	
 	//Get settings
-	$this->settings = get_option( '_wpio_settings' );
+	$this->settings = array(
+	    "wpio_api_include"=>"wp-content/uploads,wp-content/themes",
+	    "wpio_api_resize_auto"=>"0",
+	    "wpio_api_maxsize"=>"1600",
+	    "wpio_api_minfilesize"=>"0",
+	    "wpio_api_maxfilesize"=>"5120",
+	    "wpio_api_typepdf"=>"lossy",
+	    "wpio_api_typepng"=>"lossy",
+	    "wpio_api_typejpg"=>"lossy",
+	    "wpio_api_typegif"=>"lossy"
+	);
+	$settings = get_option( '_wpio_settings' );
+	if(is_array($settings)){
+	    $this->settings = array_merge($this->settings, $settings);
+	}
+	
 	
 	//Add column in media manager
 	add_filter('manage_media_columns', array(&$this,'addMediaColumn'));
@@ -341,7 +356,7 @@ jQuery(document).ready(function($) {
     }
     
     public function showminfilesize(){
-        $api_minfilesize = isset( $this->settings['wpio_api_minfilesize'] ) ? $this->settings['wpio_api_minfilesize'] : '1';
+        $api_minfilesize = isset( $this->settings['wpio_api_minfilesize'] ) ? $this->settings['wpio_api_minfilesize'] : '0';
 	echo '<input id="wpio_api_minfilesize" name="_wpio_settings[wpio_api_minfilesize]" type="text" value="'.esc_attr( $api_minfilesize).'" size="10"/>';
     }
     
@@ -440,11 +455,12 @@ jQuery(document).ready(function($) {
         $optimizedFiles = $wpdb->get_results($query,OBJECT_K);
 	$this->totalOptimizedImages = count($optimizedFiles);	
 	$include_folders = isset( $this->settings['wpio_api_include'] ) ? $this->settings['wpio_api_include'] : 'wp-content/uploads,wp-content/themes';
-	$this->allowedPath = explode(',',$include_folders);                
+	$this->allowedPath = explode(',',$include_folders);
+	$allowed_ext = array();
         for($i=0;$i<count($this->allowed_ext); $i++) {
             $compression_type = isset($this->settings['wpio_api_type'.$this->allowed_ext[$i]])? $this->settings['wpio_api_type'.$this->allowed_ext[$i]] : "none" ;  
-            if($compression_type=="none") {
-                unset($this->allowed_ext[$i]);
+            if($compression_type!="none") {
+                $allowed_ext[] = $this->allowed_ext[$i];
             }
         }
         $this->allowed_ext = array_values($this->allowed_ext);
@@ -462,7 +478,7 @@ jQuery(document).ready(function($) {
                     continue;
                 }
 
-                if(!in_array(strtolower(pathinfo($filename,PATHINFO_EXTENSION)),$this->allowed_ext)){
+                if(!in_array(strtolower(pathinfo($filename,PATHINFO_EXTENSION)),$allowed_ext)){
                     continue;
                 }	
                 if(filesize($filename) < $min_size || filesize($filename) > $max_size) {
