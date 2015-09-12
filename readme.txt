@@ -2,8 +2,8 @@
 Contributors: ImageRecycle
 Tags: image compression, image optimization, image compress, image resizer, image resizer, image reduce, image compressor, image compression, media, image, pdf, optimize, compression, compress, resize, reduce, lossless, lossy, optimization, photo, picture, seo
 Requires at least: 3.5.1
-Tested up to: 4.2
-Stable tag: 1.0.4
+Tested up to: 4.3
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,12 +40,15 @@ So it will works with all third party plugins including WooCommerce. Plus, you c
 - Compress automatically existing images & pdf
 - Determine witch folder to optimize
 - 1 month all media backup and one click restore
-- Image automatic resizing
+- Image automatic max size resizing
 - Define an optimization quality per media type (jpg, png, gif, pdf)
 - Define a min and max size to optimize
 - Optimize png, jpg, gif
 
 **More details here:** https://www.imagerecycle.com/cms/wordpress
+
+= How to optimize images with wordPress plugin: =
+[vimeo https://vimeo.com/137127106]
 
 = Video presentation: =
 [youtube https://www.youtube.com/watch?v=w3ux1kJU0I8]
@@ -76,24 +79,24 @@ It's possible on single and multiple server WordPress install. Once you are a me
 1. Existing media single or bulk optimization, automatic for new media
 1. Select folder to include/exclude from optimization process
 
-== Revisions ==
-
-* 1.0.0 Initial release, folder exclusion, media compression options
- 
-
 == Changelog ==
 
-= 1.0.0 : =
-* Initial release
-= 1.0.1 : =
-* Fix bulk optimization stuck on some servers
-= 1.0.2 : =
-* Add text presentation
-= 1.0.3 : =
-* Add folder tree to include folders
+= 1.1.0 : =
+* Add quick account creation from the plugin
+* Enhanced returned error messages from API
+* Fix default folder value not set
 = 1.0.4 : =
 * Fix folder conflict with wp-media-folder ( http://www.joomunited.com/wordpress-products/wp-media-folder )
 * Fix warning
+= 1.0.3 : =
+* Add folder tree to include folders
+= 1.0.2 : =
+* Add text presentation
+= 1.0.1 : =
+* Fix bulk optimization stuck on some servers
+= 1.0.0 : =
+* Initial release
+
 
 == Upgrade Notice ==
 

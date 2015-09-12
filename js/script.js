@@ -26,7 +26,12 @@ jQuery(document).ready(function($){
                     }
                     initButtons();
                 }else {
-                    $(e.currentTarget).parents('tr').find('.optimizationStatus').html("An error occurs");
+                    if(typeof(response.datas)!=='undefined' && typeof(response.datas.msg)!=='undefined'){
+                        error = response.datas.msg;
+                    }else{
+                        error = "An error occured";
+                    }
+                    $(e.currentTarget).parents('tr').find('.optimizationStatus').html(error);
                 }
                 
             }              
@@ -39,29 +44,38 @@ jQuery(document).ready(function($){
         if($('#bulk-action-selector-top').val()==='optimize_selected'){
             $('#the-list').find('input[name="image[]"]:checked').parents('tr').find('.ioa-proceed').trigger('click');
         }else if($('#bulk-action-selector-top').val()==='optimize_all'){
-            irBox = $("#ir_wait");
-            if(irBox.length===0){
-                $('body').append('<div id="ir_wait"><div class="ir_innerContent"><section class="progress_wraper">'+ $("#progress_init").html() +'</section></div></div>');
-                irBox = $("#ir_wait");
-            }
-            cWidth  = Math.floor($(window).width()*0.9);
-            cHeight = Math.floor($(window).height()*0.9);
-            $("#ir_wait .progress_wraper").css('width',cWidth ).css('height',cHeight);
-            innerContent = irBox.children(".ir_innerContent");
-            innerContent.css('margin-top',(-cHeight/2)+'px').css('margin-left',(-cWidth/2)+'px');                              
-            innerContent.css('height','').css('width','').css('top','').css('left','');
-                                            
-            $('progress').each(function() {
-                var max = $(this).val();
-                    $(this).val(0).animate({ value: max }, { duration: 2000});
-            });
-
-            $('#ir_wait').click(function() {
-                window.location.reload();
-            });
-            startTime = Date.now();
-            optimizeAll();
+        	callOptimizeAll();
         }
+    });
+    
+    callOptimizeAll = function()
+    {
+    	irBox = $("#ir_wait");
+        if(irBox.length===0){
+            $('body').append('<div id="ir_wait"><div class="ir_innerContent"><section class="progress_wraper">'+ $("#progress_init").html() +'</section></div></div>');
+            irBox = $("#ir_wait");
+        }
+        cWidth  = Math.floor($(window).width()*0.9);
+        cHeight = Math.floor($(window).height()*0.9);
+        $("#ir_wait .progress_wraper").css('width',cWidth ).css('height',cHeight);
+        innerContent = irBox.children(".ir_innerContent");
+        innerContent.css('margin-top',(-cHeight/2)+'px').css('margin-left',(-cWidth/2)+'px');                              
+        innerContent.css('height','').css('width','').css('top','').css('left','');
+                                        
+        $('progress').each(function() {
+            var max = $(this).val();
+                $(this).val(0).animate({ value: max }, { duration: 2000});
+        });
+
+        $('#ir_wait').click(function() {
+            window.location.reload();
+        });
+        startTime = Date.now();
+        optimizeAll();
+    }
+    
+    $('#dooptimizeall').click(function(){
+    	callOptimizeAll();
     });
     
     optimizeAll = function(){
