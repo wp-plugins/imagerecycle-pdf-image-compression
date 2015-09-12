@@ -1,5 +1,7 @@
 <?php
 
+defined( 'ABSPATH' ) || die( 'No direct script access allowed!' );
+
 class wpImageRecycle {
     
     private $allowed_ext = array('jpg','png','gif','pdf');
@@ -14,7 +16,22 @@ class wpImageRecycle {
 	include_once 'ioa.class.php';
 	
 	//Get settings
-	$this->settings = get_option( '_wpio_settings' );
+	$this->settings = array(
+	    "wpio_api_include"=>"wp-content/uploads,wp-content/themes",
+	    "wpio_api_resize_auto"=>"0",
+	    "wpio_api_maxsize"=>"1600",
+	    "wpio_api_minfilesize"=>"0",
+	    "wpio_api_maxfilesize"=>"5120",
+	    "wpio_api_typepdf"=>"lossy",
+	    "wpio_api_typepng"=>"lossy",
+	    "wpio_api_typejpg"=>"lossy",
+	    "wpio_api_typegif"=>"lossy"
+	);
+	$settings = get_option( '_wpio_settings' );
+	if(is_array($settings)){
+	    $this->settings = array_merge($this->settings, $settings);
+	}
+	
 	
 	//Add column in media manager
 	add_filter('manage_media_columns', array(&$this,'addMediaColumn'));
@@ -34,6 +51,7 @@ class wpImageRecycle {
         add_action('wp_ajax_wpio_setFolders', array($this, 'setFolders') );
 	add_action('admin_enqueue_scripts', array(&$this,'addScriptUploadPage'));
         add_action('admin_init', array(&$this,'wpio_admin_init'));
+        add_action('wp_ajax_wpio_createAccount', array(&$this,'saveNewAccountData'));
     }   
     
     public static function install(){
@@ -41,7 +59,7 @@ class wpImageRecycle {
    
 	require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 
-	$sql = "CREATE TABLE `".$wpdb->prefix."wpio_images` (
+	$sql = "CREATE TABLE IF NOT EXISTS `".$wpdb->prefix."wpio_images` (
 		   `id` int(11) NOT NULL AUTO_INCREMENT,
 		   `file` varchar(250) NOT NULL,
 		   `md5` varchar(32) NOT NULL,
@@ -276,7 +294,7 @@ jQuery(document).ready(function($) {
            if( empty($this->settings['wpio_api_key']) || empty($this->settings['wpio_api_secret']) ) {
             include_once WPIO_IMAGERECYCLE .'class/pages/wpio-dashboard.php'; 
            } ?>
-            <h2><?php _e('Image Recycle Settings','wpio') ?></h2>           
+            <h2 id="wpio_settings"><?php _e('Image Recycle Settings','wpio') ?></h2>	    
             <form method="post" action="options.php">
             <?php
                 settings_fields( 'Image Recycle' );   
@@ -285,7 +303,6 @@ jQuery(document).ready(function($) {
             ?>
             </form>
         </div>
-    
         <?php
     }
     
@@ -339,7 +356,7 @@ jQuery(document).ready(function($) {
     }
     
     public function showminfilesize(){
-        $api_minfilesize = isset( $this->settings['wpio_api_minfilesize'] ) ? $this->settings['wpio_api_minfilesize'] : '1';
+        $api_minfilesize = isset( $this->settings['wpio_api_minfilesize'] ) ? $this->settings['wpio_api_minfilesize'] : '0';
 	echo '<input id="wpio_api_minfilesize" name="_wpio_settings[wpio_api_minfilesize]" type="text" value="'.esc_attr( $api_minfilesize).'" size="10"/>';
     }
     
@@ -410,22 +427,26 @@ jQuery(document).ready(function($) {
 		
         if( empty($this->settings['wpio_api_key']) || empty($this->settings['wpio_api_secret']) ) {
             include_once WPIO_IMAGERECYCLE .'class/pages/wpio-dashboard.php'; 
-        } 
-           
-	$table = new WPIOTable();
-	$table->setColumns(array( 'cb' => '<input type="checkbox" />', 'thumbnail'=>'Image' ,'filename'=>'Filename','size'=>'Size (Kb)','status'=>'Status','actions'=>'Actions'));
-	$table->setItems($imagesPaged,count($images),30);
-	$table->display();
-if($this->totalImages==0) $this->totalImages = 1; //avoid divide zero
-    $progressVal = floor($this->totalOptimizedImages*100 / $this->totalImages);
-    if($progressVal>100) $progressVal =100;
-    $pressMsg = sprintf("Processing ... %s / %s images", $this->totalOptimizedImages, $this->totalImages);
-?>
-    <div id="progress_init" style="display: none">
-        <progress value="<?php echo $progressVal;?>" max="100"></progress><span><?php echo $pressMsg;?></span>
-        <p class="timeRemain"></p>
-    </div>
-    <?php
+        }else{ 
+	    echo '<h1>ImageRecycle - images and pdf compression</h1>';
+	    if(isset($_GET['iomess']) && $_GET['iomess']==='accountCreated'){
+		echo '<div class="updated notice notice-success is-dismissible below-h2"><p>Your account has been created and your API key and secret automatically filled.  You\'re ready to optimize your images.</p><button type="button" class="notice-dismiss"><span class="screen-reader-text">Dissmiss.</span></button></div>';
+	    }
+	    $table = new WPIOTable();
+	    $table->setColumns(array( 'cb' => '<input type="checkbox" />', 'thumbnail'=>'Image' ,'filename'=>'Filename','size'=>'Size (Kb)','status'=>'Status','actions'=>'Actions'));
+	    $table->setItems($imagesPaged,count($images),30);
+	    $table->display();
+	    if($this->totalImages==0) $this->totalImages = 1; //avoid divide zero
+		$progressVal = floor($this->totalOptimizedImages*100 / $this->totalImages);
+		if($progressVal>100) $progressVal =100;
+		$pressMsg = sprintf("Processing ... %s / %s images", $this->totalOptimizedImages, $this->totalImages);
+	    ?>
+		<div id="progress_init" style="display: none">
+		    <progress value="<?php echo $progressVal;?>" max="100"></progress><span><?php echo $pressMsg;?></span>
+		    <p class="timeRemain"></p>
+		</div>
+	    <?php
+	}
     }
     
     protected function getLocalImages(){
@@ -433,14 +454,13 @@ if($this->totalImages==0) $this->totalImages = 1; //avoid divide zero
         $query = 'SELECT file,api_id,size_before,date,expiration_date FROM '.$wpdb->prefix.'wpio_images';
         $optimizedFiles = $wpdb->get_results($query,OBJECT_K);
 	$this->totalOptimizedImages = count($optimizedFiles);	
-	if (!empty($this->settings['wpio_api_include']) ) { 
-            $include_folders = $this->settings['wpio_api_include'];            
-            $this->allowedPath = explode(',',$include_folders);                
-        }
+	$include_folders = isset( $this->settings['wpio_api_include'] ) ? $this->settings['wpio_api_include'] : 'wp-content/uploads,wp-content/themes';
+	$this->allowedPath = explode(',',$include_folders);
+	$allowed_ext = array();
         for($i=0;$i<count($this->allowed_ext); $i++) {
             $compression_type = isset($this->settings['wpio_api_type'.$this->allowed_ext[$i]])? $this->settings['wpio_api_type'.$this->allowed_ext[$i]] : "none" ;  
-            if($compression_type=="none") {
-                unset($this->allowed_ext[$i]);
+            if($compression_type!="none") {
+                $allowed_ext[] = $this->allowed_ext[$i];
             }
         }
         $this->allowed_ext = array_values($this->allowed_ext);
@@ -458,7 +478,7 @@ if($this->totalImages==0) $this->totalImages = 1; //avoid divide zero
                     continue;
                 }
 
-                if(!in_array(strtolower(pathinfo($filename,PATHINFO_EXTENSION)),$this->allowed_ext)){
+                if(!in_array(strtolower(pathinfo($filename,PATHINFO_EXTENSION)),$allowed_ext)){
                     continue;
                 }	
                 if(filesize($filename) < $min_size || filesize($filename) > $max_size) {
@@ -795,6 +815,18 @@ if($this->totalImages==0) $this->totalImages = 1; //avoid divide zero
 	echo json_encode($response);
 	die();
     }
+        
+    public function saveNewAccountData()
+    {
+        $key = $_REQUEST['key'];
+        $secret = $_REQUEST['secret'];
+        $settings = get_option('_wpio_settings');
+        $settings['wpio_api_key'] = $key;
+        $settings['wpio_api_secret'] = $secret;
+        $result = update_option('_wpio_settings', $settings);
+        echo json_encode($result);
+        die();
+    }
 }
 
 class IgnorantRecursiveDirectoryIterator extends RecursiveDirectoryIterator { 
@@ -869,5 +901,18 @@ if( !class_exists( 'WPIOTable' ) ) {
 	    return $actions;
 	}
 	
+	function extra_tablenav($which)
+	{
+	    $optimizeAllText = __('OptimizeAll','wpio');
+	    if($optimizeAllText == "OptimizeAll")
+	    {
+	        $optimizeAllText = "Optimize all";
+	    }
+	    ?>
+        <div class="alignleft actions bulkactions">
+            <input id="dooptimizeall" class="button button-primary action" type="button" value="<?=$optimizeAllText ?>">
+        </div>
+        <?php
+    }
     }
 }
